@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Base64 변환</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <div class="page-shell">
+    <header class="topbar">
+      <a class="brand" href="#top">Base64 변환</a>
+    </header>
+
+    <main id="top">
+      <section class="tool-grid">
+        <article class="panel tool-card">
+          <div class="tool-header">
+            <h2>Base64</h2>
+            <div class="mode-switch">
+              <button class="mode-btn is-active" type="button" data-mode="decode">디코딩</button>
+              <button class="mode-btn" type="button" data-mode="encode">인코딩</button>
+            </div>
+          </div>
+
+          <label class="field">
+            <span class="field-label">입력</span>
+            <textarea id="inputText" placeholder="텍스트 입력"></textarea>
+          </label>
+
+          <div class="controls-row">
+            <label class="check">
+              <input id="liveMode" type="checkbox" checked />
+              <span>라이브</span>
+            </label>
+            <label class="check">
+              <input id="splitLines" type="checkbox" />
+              <span>줄 단위</span>
+            </label>
+            <label class="field compact">
+              <span class="field-label">문자 세트</span>
+              <select id="charset">
+                <option value="utf-8">UTF-8</option>
+                <option value="latin1">Latin-1</option>
+              </select>
+            </label>
+            <button id="pasteBtn" class="button button-secondary" type="button" style="min-width: 80px;">붙여넣기</button>
+          </div>
+
+          <div class="button-row">
+            <button id="transformBtn" class="button button-primary" type="button">디코딩</button>
+            <button id="copyBtn" class="button button-secondary" type="button">복사</button>
+            <button id="clearBtn" class="button button-ghost" type="button">지우기</button>
+          </div>
+
+          <label class="field">
+            <span class="field-label">결과</span>
+            <textarea id="outputText" readonly placeholder="결과"></textarea>
+          </label>
+
+          <p id="statusText" class="status"></p>
+        </article>
+
+        <aside class="panel side-card">
+          <section class="upload-section">
+            <h2>파일</h2>
+            <label class="file-drop" for="fileInput">
+              <input id="fileInput" type="file" />
+              <span>클릭하여 선택</span>
+            </label>
+            <button id="decodeFileBtn" class="button button-primary full-width" type="button">디코딩</button>
+          </section>
+        </aside>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
