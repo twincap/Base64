@@ -420,12 +420,11 @@ if (fileDrop && fileInput) {
 }
 
 inputText.addEventListener('contextmenu', async (e) => {
+  e.preventDefault();
   const permissionState = await refreshClipboardPermission();
   if (!canAutoPasteFromContextMenu(permissionState)) {
     return;
   }
-
-  e.preventDefault();
   clipboardPromptAttempted = true;
   try {
     const text = await navigator.clipboard.readText();
