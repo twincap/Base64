@@ -13,9 +13,53 @@ const decodeFileBtn = document.getElementById('decodeFileBtn');
 const modeButtons = Array.from(document.querySelectorAll('.mode-btn'));
 
 let currentMode = 'decode';
+const utf8Encoder = new TextEncoder();
+const utf8Decoder = new TextDecoder();
+let clipboardPermissionState = 'unknown';
+let clipboardPromptAttempted = false;
+let clipboardReadSucceeded = false;
+
+async function refreshClipboardPermission() {
+  if (!navigator.permissions || !navigator.permissions.query) {
+    return clipboardPermissionState;
+  }
+
+  try {
+    const status = await navigator.permissions.query({ name: 'clipboard-read' });
+    clipboardPermissionState = status.state;
+    status.onchange = () => {
+      clipboardPermissionState = status.state;
+    };
+    return clipboardPermissionState;
+  } catch (error) {
+    clipboardPermissionState = 'unknown';
+    return clipboardPermissionState;
+  }
+}
+
+function canAutoPasteFromContextMenu(permissionState) {
+  if (permissionState === 'granted') {
+    return true;
+  }
+  if (permissionState === 'denied') {
+    return false;
+  }
+  if (clipboardReadSucceeded) {
+    return true;
+  }
+  return !clipboardPromptAttempted;
+}
+
+function noteClipboardDenied(error) {
+  if (error && error.name === 'NotAllowedError') {
+    clipboardPermissionState = 'denied';
+    clipboardPromptAttempted = true;
+    clipboardReadSucceeded = false;
+  }
+}
 
 function setStatus(message, type = 'info') {
-  statusText.textContent = message;
+  statusText.textContent = message || '';
   statusText.dataset.type = type;
 }
 
@@ -23,21 +67,52 @@ function normalizeBase64(value) {
   return value.replace(/\s+/g, '').replace(/-/g, '+').replace(/_/g, '/');
 }
 
+function bytesToBase64(bytes) {
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function base64ToBytes(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes;
+}
+
+function bytesToLatin1(bytes) {
+  let output = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    output += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+  }
+  return output;
+}
+
 function encodeToBase64(text, encoding) {
   if (encoding === 'latin1') {
-    return btoa(unescape(encodeURIComponent(text)));
+    for (let i = 0; i < text.length; i += 1) {
+      if (text.charCodeAt(i) > 255) {
+        throw new Error('Latin-1 only');
+      }
+    }
+    return btoa(text);
   }
-  return btoa(unescape(encodeURIComponent(text)));
+  return bytesToBase64(utf8Encoder.encode(text));
 }
 
 function decodeFromBase64(value, encoding) {
   const normalized = normalizeBase64(value);
   try {
-    const decoded = atob(normalized);
+    const bytes = base64ToBytes(normalized);
     if (encoding === 'latin1') {
-      return decodeURIComponent(escape(decoded));
+      return bytesToLatin1(bytes);
     }
-    return decodeURIComponent(escape(decoded));
+    return utf8Decoder.decode(bytes);
   } catch (error) {
     // Base64가 아닌 일반 텍스트면 그대로 반환
     return value;
@@ -55,7 +130,7 @@ function transform() {
   const source = inputText.value;
   if (!source.trim()) {
     outputText.value = '';
-    setStatus('입력값을 먼저 넣어주세요.', 'warning');
+    setStatus('입력 필요', 'warning');
     return;
   }
 
@@ -68,7 +143,7 @@ function transform() {
         result = decodeFromBase64(source, charset.value);
       }
       transformBtn.textContent = '디코딩';
-      setStatus('디코딩이 완료되었습니다.', 'success');
+      setStatus('완료', 'success');
     } else {
       if (splitLines.checked) {
         result = processLines(source, (line) => encodeToBase64(line, charset.value));
@@ -76,12 +151,12 @@ function transform() {
         result = encodeToBase64(source, charset.value);
       }
       transformBtn.textContent = '인코딩';
-      setStatus('에 실패했습니다ss');
+      setStatus('완료', 'success');
     }
     outputText.value = result;
   } catch (error) {
     outputText.value = '';
-    setStatus('변환할 수 없습니다. 입력 형식을 확인하세요.', 'error');
+    setStatus('오류', 'error');
   }
 }
 
@@ -120,22 +195,22 @@ transformBtn.addEventListener('click', transform);
 
 copyBtn.addEventListener('click', async () => {
   if (!outputText.value) {
-    setStatus('복사할 결과가 없습니다.', 'warning');
+    setStatus('결과 없음', 'warning');
     return;
   }
 
   try {
     await navigator.clipboard.writeText(outputText.value);
-    setStatus('결과를 클립보드에 복사했습니다.', 'success');
+    setStatus('복사됨', 'success');
   } catch (error) {
-    setStatus('클립보드 복사에 실패했습니다.', 'error');
+    setStatus('복사 실패', 'error');
   }
 });
 
 clearBtn.addEventListener('click', () => {
   inputText.value = '';
   outputText.value = '';
-  setStatus('입력과 결과를 지웠습니다.', 'info');
+  setStatus('지움', 'info');
   inputText.focus();
 });
 
@@ -146,9 +221,15 @@ pasteBtn.addEventListener('click', async () => {
     if (liveMode.checked) {
       transform();
     }
-    setStatus('클립보드에서 붙여넣었습니다.', 'success');
+    setStatus('붙여넣음', 'success');
+    clipboardReadSucceeded = true;
+    const permissionState = await refreshClipboardPermission();
+    if (permissionState !== 'granted') {
+      clipboardPromptAttempted = true;
+    }
   } catch (error) {
-    setStatus('클립보드에서 읽을 수 없습니다.', 'error');
+    noteClipboardDenied(error);
+    setStatus('붙여넣기 실패', 'error');
   }
 });
 
@@ -184,32 +265,67 @@ function downloadDecodedFile(decodedText, originalFileName) {
 decodeFileBtn.addEventListener('click', async () => {
   const file = fileInput.files && fileInput.files[0];
   if (!file) {
+    setStatus('파일 필요', 'warning');
+    return;
+  }
+
+  try {
+    const decoded = await decodeSelectedFile(file);
+    downloadDecodedFile(decoded, file.name);
+    setStatus('파일 완료', 'success');
+  } catch (error) {
+    setStatus('파일 오류', 'error');
+  }
+});
+
 inputText.addEventListener('contextmenu', async (e) => {
+  const permissionState = await refreshClipboardPermission();
+  if (!canAutoPasteFromContextMenu(permissionState)) {
+    return;
+  }
+
   e.preventDefault();
+  clipboardPromptAttempted = true;
   try {
     const text = await navigator.clipboard.readText();
     inputText.value = text;
     if (liveMode.checked) {
       transform();
     }
+    setStatus('붙여넣음', 'success');
+    clipboardReadSucceeded = true;
+    const nextPermissionState = await refreshClipboardPermission();
+    if (nextPermissionState !== 'granted') {
+      clipboardPromptAttempted = true;
+    }
   } catch (error) {
-    setStatus('클립보드에서 읽을 수 없습니다.', 'error');
+    noteClipboardDenied(error);
+    setStatus('붙여넣기 실패', 'error');
   }
 });
 
 outputText.addEventListener('click', async () => {
   if (!outputText.value) {
-    setStatus('복사할 결과가 없습니다.', 'warning');
+    setStatus('결과 없음', 'warning');
     return;
   }
 
   try {
     await navigator.clipboard.writeText(outputText.value);
-    setStatus('결과를 클립보드에 복사했습니다.', 'success');
+    setStatus('복사됨', 'success');
   } catch (error) {
-    setStatus('클립보드 복사에 실패했습니다.', 'error');
+    setStatus('복사 실패', 'error');
+  }
+});
+
+document.addEventListener('keydown', (event) => {
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    event.preventDefault();
+    transform();
   }
 });
 
 setMode('decode');
-setStatus('Base64 변환 도구가 준비되었습니다.', 'info');
+setStatus('');
+refreshClipboardPermission();
+inputText.focus();

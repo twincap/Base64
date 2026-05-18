@@ -13,26 +13,35 @@
 <body>
   <div class="page-shell">
     <header class="topbar">
-      <a class="brand" href="#top">Base64 변환</a>
+      <a class="brand" href="#top">Base64</a>
+      <div class="mode-switch" role="tablist" aria-label="모드">
+        <button class="mode-btn is-active" type="button" data-mode="decode">디코딩</button>
+        <button class="mode-btn" type="button" data-mode="encode">인코딩</button>
+      </div>
     </header>
 
     <main id="top">
-      <section class="tool-grid">
-        <article class="panel tool-card">
-          <div class="tool-header">
-            <h2>Base64</h2>
-            <div class="mode-switch">
-              <button class="mode-btn is-active" type="button" data-mode="decode">디코딩</button>
-              <button class="mode-btn" type="button" data-mode="encode">인코딩</button>
-            </div>
-          </div>
+      <section class="panel tool-card">
+        <label class="field">
+          <span class="field-label sr-only">입력</span>
+          <textarea id="inputText" placeholder="입력"></textarea>
+        </label>
 
-          <label class="field">
-            <span class="field-label">입력</span>
-            <textarea id="inputText" placeholder="텍스트 입력"></textarea>
-          </label>
+        <div class="toolbar">
+          <button id="transformBtn" class="button button-primary" type="button">디코딩</button>
+          <button id="copyBtn" class="button button-secondary" type="button">복사</button>
+          <button id="pasteBtn" class="button button-secondary" type="button">붙여넣기</button>
+          <button id="clearBtn" class="button button-ghost" type="button">지우기</button>
+        </div>
 
-          <div class="controls-row">
+        <label class="field">
+          <span class="field-label sr-only">결과</span>
+          <textarea id="outputText" readonly placeholder="결과"></textarea>
+        </label>
+
+        <details class="advanced">
+          <summary>옵션</summary>
+          <div class="advanced-grid">
             <label class="check">
               <input id="liveMode" type="checkbox" checked />
               <span>라이브</span>
@@ -48,33 +57,21 @@
                 <option value="latin1">Latin-1</option>
               </select>
             </label>
-            <button id="pasteBtn" class="button button-secondary" type="button" style="min-width: 80px;">붙여넣기</button>
           </div>
+        </details>
 
-          <div class="button-row">
-            <button id="transformBtn" class="button button-primary" type="button">디코딩</button>
-            <button id="copyBtn" class="button button-secondary" type="button">복사</button>
-            <button id="clearBtn" class="button button-ghost" type="button">지우기</button>
-          </div>
-
-          <label class="field">
-            <span class="field-label">결과</span>
-            <textarea id="outputText" readonly placeholder="결과"></textarea>
-          </label>
-
-          <p id="statusText" class="status"></p>
-        </article>
-
-        <aside class="panel side-card">
-          <section class="upload-section">
-            <h2>파일</h2>
+        <details class="advanced">
+          <summary>파일</summary>
+          <div class="file-row">
             <label class="file-drop" for="fileInput">
               <input id="fileInput" type="file" />
-              <span>클릭하여 선택</span>
+              <span>파일 선택</span>
             </label>
-            <button id="decodeFileBtn" class="button button-primary full-width" type="button">디코딩</button>
-          </section>
-        </aside>
+            <button id="decodeFileBtn" class="button button-primary" type="button">디코딩</button>
+          </div>
+        </details>
+
+        <p id="statusText" class="status" role="status" aria-live="polite"></p>
       </section>
     </main>
   </div>
