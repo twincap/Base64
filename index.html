@@ -6,7 +6,7 @@
   <title>Base64 변환</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
   <script defer src="app.js"></script>
 </head>
@@ -20,7 +20,7 @@
       </div>
     </header>
 
-    <main id="top">
+    <main id="top" class="tool-grid">
       <section class="panel tool-card">
         <label class="field">
           <span class="field-label sr-only">입력</span>
@@ -60,18 +60,33 @@
           </div>
         </details>
 
-        <details class="advanced">
-          <summary>파일</summary>
-          <div class="file-row">
-            <label class="file-drop" for="fileInput">
-              <input id="fileInput" type="file" />
-              <span>파일 선택</span>
-            </label>
-            <button id="decodeFileBtn" class="button button-primary" type="button">디코딩</button>
-          </div>
-        </details>
-
         <p id="statusText" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="panel file-card" aria-label="파일 변환">
+        <header class="card-header">
+          <p class="eyebrow">파일</p>
+          <h2>파일 변환</h2>
+          <p id="fileHint" class="card-sub">Base64 텍스트 파일을 선택하세요.</p>
+        </header>
+
+        <label class="file-drop" for="fileInput">
+          <input id="fileInput" type="file" />
+          <div class="file-drop-inner">
+            <span class="file-drop-title">클릭하여 선택</span>
+            <span class="file-drop-sub">또는 파일을 끌어다 놓기</span>
+          </div>
+        </label>
+
+        <div class="file-meta">
+          <span id="fileName">선택된 파일 없음</span>
+          <span id="fileSize"></span>
+        </div>
+
+        <div class="file-actions">
+          <button id="fileActionBtn" class="button button-primary" type="button">디코딩</button>
+          <button id="fileClearBtn" class="button button-secondary" type="button">선택 해제</button>
+        </div>
       </section>
     </main>
   </div>

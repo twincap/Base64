@@ -9,7 +9,12 @@ const liveMode = document.getElementById('liveMode');
 const splitLines = document.getElementById('splitLines');
 const charset = document.getElementById('charset');
 const fileInput = document.getElementById('fileInput');
-const decodeFileBtn = document.getElementById('decodeFileBtn');
+const fileActionBtn = document.getElementById('fileActionBtn');
+const fileClearBtn = document.getElementById('fileClearBtn');
+const fileName = document.getElementById('fileName');
+const fileSize = document.getElementById('fileSize');
+const fileHint = document.getElementById('fileHint');
+const fileDrop = document.querySelector('.file-drop');
 const modeButtons = Array.from(document.querySelectorAll('.mode-btn'));
 
 let currentMode = 'decode';
@@ -61,6 +66,110 @@ function noteClipboardDenied(error) {
 function setStatus(message, type = 'info') {
   statusText.textContent = message || '';
   statusText.dataset.type = type;
+}
+
+function formatBytes(bytes) {
+  if (bytes === 0) {
+    return '0 B';
+  }
+  const units = ['B', 'KB', 'MB', 'GB'];
+  const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  const value = bytes / (1024 ** index);
+  return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`;
+}
+
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error || new Error('파일을 읽을 수 없습니다.'));
+    reader.readAsText(file);
+  });
+}
+
+function readFileAsArrayBuffer(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('파일을 읽을 수 없습니다.'));
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+function downloadTextFile(text, fileNameValue) {
+  const blob = new Blob([text], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileNameValue;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function downloadBinaryFile(bytes, fileNameValue) {
+  const blob = new Blob([bytes], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileNameValue;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+}
+
+function buildEncodedFileName(name) {
+  const trimmed = name.replace(/\.[^.]+$/, '');
+  const base = trimmed || name;
+  return `${base}.b64.txt`;
+}
+
+function buildDecodedFileName(name) {
+  const stripped = name.replace(/\.(b64|base64|txt)$/i, '');
+  const base = stripped || name;
+  return `${base}-decoded.bin`;
+}
+
+function updateFileUi() {
+  if (!fileActionBtn) {
+    return;
+  }
+  fileActionBtn.textContent = currentMode === 'decode' ? '디코딩' : '인코딩';
+  if (fileHint) {
+    fileHint.textContent = currentMode === 'decode'
+      ? 'Base64 텍스트 파일을 선택하세요.'
+      : '선택한 파일을 Base64로 만들어 결과에 표시하고 저장합니다.';
+  }
+}
+
+function setSelectedFile(file) {
+  if (!file) {
+    if (fileInput) {
+      fileInput.value = '';
+    }
+    if (fileDrop) {
+      fileDrop.classList.remove('has-file');
+    }
+    if (fileName) {
+      fileName.textContent = '선택된 파일 없음';
+    }
+    if (fileSize) {
+      fileSize.textContent = '';
+    }
+    return;
+  }
+
+  if (fileDrop) {
+    fileDrop.classList.add('has-file');
+  }
+  if (fileName) {
+    fileName.textContent = file.name;
+  }
+  if (fileSize) {
+    fileSize.textContent = formatBytes(file.size);
+  }
 }
 
 function normalizeBase64(value) {
@@ -168,6 +277,7 @@ function setMode(mode) {
     button.setAttribute('aria-selected', String(isActive));
   });
   transformBtn.textContent = mode === 'decode' ? '디코딩' : '인코딩';
+  updateFileUi();
   if (liveMode.checked) {
     transform();
   }
@@ -233,50 +343,81 @@ pasteBtn.addEventListener('click', async () => {
   }
 });
 
-function decodeSelectedFile(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const text = String(reader.result || '');
-        const decoded = decodeFromBase64(text, charset.value);
-        resolve(decoded);
-      } catch (error) {
-        reject(error);
-      }
-    };
-    reader.onerror = () => reject(reader.error || new Error('파일을 읽을 수 없습니다.'));
-    reader.readAsText(file);
-  });
-}
-
-function downloadDecodedFile(decodedText, originalFileName) {
-  const blob = new Blob([decodedText], { type: 'application/octet-stream' });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement('a');
-  anchor.href = url;
-  anchor.download = originalFileName.replace(/\.[^.]+$/, '') + '-decoded.bin';
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-}
-
-decodeFileBtn.addEventListener('click', async () => {
-  const file = fileInput.files && fileInput.files[0];
+async function handleFileAction() {
+  const file = fileInput && fileInput.files ? fileInput.files[0] : null;
   if (!file) {
     setStatus('파일 필요', 'warning');
     return;
   }
 
   try {
-    const decoded = await decodeSelectedFile(file);
-    downloadDecodedFile(decoded, file.name);
-    setStatus('파일 완료', 'success');
+    if (currentMode === 'encode') {
+      const buffer = await readFileAsArrayBuffer(file);
+      const bytes = new Uint8Array(buffer);
+      const base64 = bytesToBase64(bytes);
+      outputText.value = base64;
+      downloadTextFile(base64, buildEncodedFileName(file.name));
+      setStatus('파일 인코딩 완료', 'success');
+    } else {
+      const text = await readFileAsText(file);
+      const normalized = normalizeBase64(text);
+      const bytes = base64ToBytes(normalized);
+      downloadBinaryFile(bytes, buildDecodedFileName(file.name));
+      setStatus('파일 디코딩 완료', 'success');
+    }
   } catch (error) {
     setStatus('파일 오류', 'error');
   }
-});
+}
+
+if (fileActionBtn) {
+  fileActionBtn.addEventListener('click', handleFileAction);
+}
+
+if (fileInput) {
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files && fileInput.files[0];
+    setSelectedFile(file || null);
+    if (file) {
+      setStatus('파일 선택됨', 'info');
+    }
+  });
+}
+
+if (fileClearBtn) {
+  fileClearBtn.addEventListener('click', () => {
+    setSelectedFile(null);
+    setStatus('파일 선택 해제', 'info');
+  });
+}
+
+if (fileDrop && fileInput) {
+  ['dragenter', 'dragover'].forEach((eventName) => {
+    fileDrop.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      fileDrop.classList.add('is-dragover');
+    });
+  });
+
+  ['dragleave', 'drop'].forEach((eventName) => {
+    fileDrop.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      fileDrop.classList.remove('is-dragover');
+    });
+  });
+
+  fileDrop.addEventListener('drop', (event) => {
+    const droppedFile = event.dataTransfer && event.dataTransfer.files ? event.dataTransfer.files[0] : null;
+    if (!droppedFile) {
+      return;
+    }
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(droppedFile);
+    fileInput.files = dataTransfer.files;
+    setSelectedFile(droppedFile);
+    setStatus('파일 선택됨', 'info');
+  });
+}
 
 inputText.addEventListener('contextmenu', async (e) => {
   const permissionState = await refreshClipboardPermission();
@@ -326,6 +467,7 @@ document.addEventListener('keydown', (event) => {
 });
 
 setMode('decode');
+setSelectedFile(fileInput && fileInput.files ? fileInput.files[0] : null);
 setStatus('');
 refreshClipboardPermission();
 inputText.focus();
