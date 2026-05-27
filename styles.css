@@ -117,6 +117,37 @@ main {
   box-shadow: var(--shadow);
 }
 
+.ad-card {
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  align-content: center;
+  grid-column: 1 / -1;
+  border-style: dashed;
+  background: rgba(18, 20, 26, 0.75);
+}
+
+.ad-inline {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 14px;
+  background: rgba(18, 20, 26, 0.55);
+}
+
+.ad-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ad-slot {
+  width: 100%;
+  min-height: 90px;
+}
+
 .tool-card {
   padding: 20px;
   display: grid;
